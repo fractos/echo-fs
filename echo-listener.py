@@ -6,9 +6,10 @@ from boto.s3.connection import S3Connection
 import json
 import os.path
 
-
-
 def main():
+	global s3FileManager
+	s3FileManager = S3FileManager()
+	
 	input_queue = get_input_queue()
 
 	num_pool_workers = settings.NUM_POOL_WORKERS
@@ -43,9 +44,9 @@ def cache_item(payload):
 	# "bucket": "my-bucket"
 	# "key": "key"
 	
-
-
-
+	print "received request to cache " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
+	
+	downloadFileFromBucket(payload['bucket'], payload['key'], settings.CACHE_ROOT + payload['target'])
 
 def init_pool():
 	global output_queue
@@ -57,5 +58,4 @@ def get_input_queue():
 	return queue
 
 if __name__ == "__main__":
-	aws_connection = S3Connection()
 	main()
