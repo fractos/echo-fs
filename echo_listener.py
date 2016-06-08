@@ -3,12 +3,13 @@ import echo_listener_settings as settings
 from boto import sqs
 from boto.sqs.message import RawMessage
 from boto.s3.connection import S3Connection
+from boto.s3.key import Key
 import json
 import os.path
 
 def main():
-	global s3FileManager
-	s3FileManager = S3FileManager()
+	global s3Connection
+	s3Connection = S3Connection()
 	
 	input_queue = get_input_queue()
 
@@ -26,15 +27,11 @@ def main():
 		print "Error getting messages"
 
 def process_message(message):
-	try:
-		message_body = json.loads(str(message.get_body()))
+	message_body = json.loads(str(message.get_body()))
 
-		if '_type' in message_body and 'message' in message_body and 'params' in message_body:
-			if message_body['message'] == "echo::cache-item":
-				cache_item(message_body['params'])
-
-	except Exception as e:
-		print e
+	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
+		if message_body['message'] == "echo::cache-item":
+			cache_item(message_body['params'])
 
 	message.delete()
 
@@ -45,8 +42,17 @@ def cache_item(payload):
 	# "key": "key"
 	
 	print "received request to cache " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
+
+	k = Key(payload['bucket'])
+	k.key = payload['key']
 	
-	downloadFileFromBucket(payload['bucket'], payload['key'], settings.CACHE_ROOT + payload['target'])
+	target = settings.CACHE_ROOT + payload['target']
+	
+	if os.path.exists(target):
+		print "already exists in cache"
+	else:
+		print "downloading from s3"
+		k.get_contents_to_filename(target)
 
 def init_pool():
 	global output_queue
