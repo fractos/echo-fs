@@ -13,10 +13,10 @@ class AgnosticMessage(RawMessage):
 	"""
 	
 	def get_effective_message(self):
-		b = json.loads(str(self.get_body()))
-		if 'Type' in b and b['Type'] == "Notification":
-			return json.loads(b['Message'])
-		return b
+		body = json.loads(str(self.get_body()))
+		if 'Type' in body and body['Type'] == "Notification":
+			return json.loads(body['Message'])
+		return body
 
 def main():
 	global s3Connection
