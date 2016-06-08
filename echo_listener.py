@@ -1,11 +1,21 @@
 from multiprocessing import Pool
 import echo_listener_settings as settings
 from boto import sqs
-from boto.sqs.message import RawMessage
+from boto.sqs.message import RawMessage, MHMessage
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import json
 import os.path
+
+class AgnosticMessage(MHMessage):
+	"""
+	A message might originate from SNS or SQS. If from SNS then it will have a wrapper on it.
+	"""
+	
+	def get_effective_message(self):
+		if 'Type' in self and self['Type'] == "Notification":
+			return json.loads(str(self['Message']))
+		return self
 
 def main():
 	global s3Connection
@@ -13,10 +23,12 @@ def main():
 	
 	input_queue = get_input_queue()
 
+	input_queue.set_message_class(AgnosticMessage)
+	
 	num_pool_workers = settings.NUM_POOL_WORKERS
 	messages_per_fetch = settings.MESSAGES_PER_FETCH
 
-	pool = Pool(num_pool_workers, initializer=init_pool, initargs=())
+	pool = Pool(num_pool_workers, initargs=())
 
 	try:
 		while True:
@@ -27,7 +39,7 @@ def main():
 		print "Error getting messages"
 
 def process_message(message):
-	message_body = json.loads(str(message.get_body()))
+	message_body = json.loads(str(message.get_effective_message()))
 
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
@@ -53,10 +65,6 @@ def cache_item(payload):
 	else:
 		print "downloading from s3"
 		k.get_contents_to_filename(target)
-
-def init_pool():
-	global output_queue
-	output_queue = get_output_queue()
 
 def get_input_queue():
 	conn = sqs.connect_to_region(settings.SQS_REGION)
