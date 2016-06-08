@@ -1,21 +1,24 @@
 from multiprocessing import Pool
 import echo_listener_settings as settings
 from boto import sqs
-from boto.sqs.message import RawMessage, MHMessage
+from boto.sqs.message import RawMessage, Message, MHMessage
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import json
 import os.path
 
-class AgnosticMessage(MHMessage):
+class AgnosticMessage(RawMessage):
 	"""
 	A message might originate from SNS or SQS. If from SNS then it will have a wrapper on it.
 	"""
 	
 	def get_effective_message(self):
-		if 'Type' in self and self['Type'] == "Notification":
-			return json.loads(str(self['Message']))
-		return self
+		print "get_effective_message"
+		b = json.loads(str(self.get_body()))
+		if 'Type' in b and b['Type'] == "Notification":
+			print "wrapped message" 
+			return json.loads(b['Message'])
+		return b
 
 def main():
 	global s3Connection
@@ -30,17 +33,15 @@ def main():
 
 	pool = Pool(num_pool_workers, initargs=())
 
-	try:
-		while True:
-			messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
-			if len(messages) > 0:
-				pool.map(process_message, messages)
-	except:
-		print "Error getting messages"
+        while True:
+                messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
+                if len(messages) > 0:
+                        pool.map(process_message, messages)
 
 def process_message(message):
-	message_body = json.loads(str(message.get_effective_message()))
-
+	print "process_message"
+	message_body = message.get_effective_message()
+	print "got message_body: " + str(message_body)
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
 			cache_item(message_body['params'])
@@ -55,17 +56,27 @@ def cache_item(payload):
 	
 	print "received request to cache " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
 
-	k = Key(payload['bucket'])
+	bucket = s3Connection.get_bucket(payload['bucket'])
+
+	k = Key(bucket)
 	k.key = payload['key']
 	
-	target = settings.CACHE_ROOT + payload['target']
-	
+	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
+
+	targetPath = '/'.join(target.split('/')[0:-1])
+	print "targetPath is " + targetPath
+
+	if not os.path.isdir(targetPath):
+		print "making folder"
+		os.makedirs(targetPath)
+
 	if os.path.exists(target):
 		print "already exists in cache"
 	else:
-		print "downloading from s3"
+		print "downloading " + payload['key'] + " from s3"
 		k.get_contents_to_filename(target)
-
+		print "downloaded"
+		
 def get_input_queue():
 	conn = sqs.connect_to_region(settings.SQS_REGION)
 	queue = conn.get_queue(settings.INPUT_QUEUE)
