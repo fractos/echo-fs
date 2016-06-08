@@ -13,10 +13,8 @@ class AgnosticMessage(RawMessage):
 	"""
 	
 	def get_effective_message(self):
-		print "get_effective_message"
 		b = json.loads(str(self.get_body()))
 		if 'Type' in b and b['Type'] == "Notification":
-			print "wrapped message" 
 			return json.loads(b['Message'])
 		return b
 
@@ -39,9 +37,7 @@ def main():
                         pool.map(process_message, messages)
 
 def process_message(message):
-	print "process_message"
 	message_body = message.get_effective_message()
-	print "got message_body: " + str(message_body)
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
 			cache_item(message_body['params'])
@@ -64,18 +60,15 @@ def cache_item(payload):
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 
 	targetPath = '/'.join(target.split('/')[0:-1])
-	print "targetPath is " + targetPath
 
 	if not os.path.isdir(targetPath):
-		print "making folder"
 		os.makedirs(targetPath)
 
 	if os.path.exists(target):
 		print "already exists in cache"
 	else:
-		print "downloading " + payload['key'] + " from s3"
 		k.get_contents_to_filename(target)
-		print "downloaded"
+		print "downloaded " + payload['key'] + " from s3"
 		
 def get_input_queue():
 	conn = sqs.connect_to_region(settings.SQS_REGION)
