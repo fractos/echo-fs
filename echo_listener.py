@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 import echo_listener_settings as settings
 from boto import sqs
-from boto.sqs.message import RawMessage, Message, MHMessage
+from boto.sqs.message import RawMessage
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import json
