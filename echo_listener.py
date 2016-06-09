@@ -7,6 +7,8 @@ from boto.s3.key import Key
 import json
 import os.path
 import sys
+import redis
+import time
 
 class AgnosticMessage(RawMessage):
 	"""
@@ -20,14 +22,17 @@ class AgnosticMessage(RawMessage):
 		return b
 
 def main():
-	global s3Connection
-	s3Connection = S3Connection()
-	
-	if len(sys.argv) < 3:
+	if len(sys.argv) < 5:
 		showUsage()
 		return
 	
-	input_queue = get_input_queue(sys.argv[2], sys.argv[3])
+	global s3Connection
+	s3Connection = S3Connection()
+	
+	global redisClient
+	redisClient = redis.Redis(host=sys.argv[1], port=int(sys.argv[2]), db=int(sys.argv[3]))
+	
+	input_queue = get_input_queue(sys.argv[4], sys.argv[5])
 
 	input_queue.set_message_class(AgnosticMessage)
 	
@@ -42,8 +47,8 @@ def main():
                         pool.map(process_message, messages)
 
 def showUsage():
-	print "Usage: echo_listener.py <Redis IP> <AWS region> <AWS queue name>"
-	print "Example: echo_listener.py 172.17.0.2 eu-west-1 echo-eu-west-1a"
+	print "Usage: echo_listener.py <Redis IP> <Redis Port> <Redis DB> <AWS region> <AWS queue name>"
+	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a"
 
 def process_message(message):
 	message_body = message.get_effective_message()
@@ -79,6 +84,15 @@ def cache_item(payload):
 		k.get_contents_to_filename(target)
 		print "downloaded " + payload['key'] + " from s3"
 		
+	record_access(target)
+	
+def record_access(item):
+	accessTime = time.time()
+	
+	print "recording access time for " + item + " as " + accessTime
+	
+	redisClient.zadd(item, accessTime)
+	
 def get_input_queue(region, queue):
 	conn = sqs.connect_to_region(region)
 	return conn.get_queue(queue)
