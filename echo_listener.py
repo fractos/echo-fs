@@ -6,6 +6,7 @@ from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import json
 import os.path
+import sys
 
 class AgnosticMessage(RawMessage):
 	"""
@@ -22,7 +23,11 @@ def main():
 	global s3Connection
 	s3Connection = S3Connection()
 	
-	input_queue = get_input_queue()
+	if len(sys.argv) < 3:
+		showUsage()
+		return
+	
+	input_queue = get_input_queue(sys.argv[2], sys.argv[3])
 
 	input_queue.set_message_class(AgnosticMessage)
 	
@@ -35,6 +40,10 @@ def main():
                 messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
                 if len(messages) > 0:
                         pool.map(process_message, messages)
+
+def showUsage():
+	print "Usage: echo_listener.py <Redis IP> <AWS region> <AWS queue name>"
+	print "Example: echo_listener.py 172.17.0.2 eu-west-1 echo-eu-west-1a"
 
 def process_message(message):
 	message_body = message.get_effective_message()
@@ -70,10 +79,9 @@ def cache_item(payload):
 		k.get_contents_to_filename(target)
 		print "downloaded " + payload['key'] + " from s3"
 		
-def get_input_queue():
-	conn = sqs.connect_to_region(settings.SQS_REGION)
-	queue = conn.get_queue(settings.INPUT_QUEUE)
-	return queue
+def get_input_queue(region, queue):
+	conn = sqs.connect_to_region(region)
+	return conn.get_queue(queue)
 
 if __name__ == "__main__":
 	main()
