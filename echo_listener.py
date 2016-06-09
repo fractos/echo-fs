@@ -87,11 +87,9 @@ def cache_item(payload):
 	record_access(target)
 	
 def record_access(item):
-	accessTime = time.time()
-	
-	print "recording access time for " + item + " as " + accessTime
-	
-	redisClient.zadd(item, accessTime)
+	print "record_access for " + item
+	accessTime = int(time.time())
+	redisClient.zadd('access', item, accessTime)
 	
 def get_input_queue(region, queue):
 	conn = sqs.connect_to_region(region)
