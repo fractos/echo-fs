@@ -61,7 +61,7 @@ def process_message(message):
 	message.delete()
 
 def item_access(payload):
-	print "received notification of access for " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
+	print "item_access s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
 	
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 	
@@ -73,7 +73,7 @@ def cache_item(payload):
 	# "bucket": "my-bucket"
 	# "key": "key"
 	
-	print "received request to cache " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
+	print "cache_item s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
 
 	bucket = s3Connection.get_bucket(payload['bucket'])
 
@@ -101,7 +101,7 @@ def cache_item(payload):
 	record_access(target)
 	
 def record_access(item):
-	print "record_access for " + item
+	#print "record_access for " + item
 	accessTime = int(time.time())
 	redisClient.zadd('access', item, accessTime)
 	
