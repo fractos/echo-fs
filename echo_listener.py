@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+from multiprocessing import Pool, Lock, Manager, Dictionary
 import echo_listener_settings as settings
 from boto import sqs
 from boto.sqs.message import RawMessage
@@ -9,6 +9,8 @@ import os.path
 import sys
 import redis
 import time
+import random
+import string
 
 class AgnosticMessage(RawMessage):
 	"""
@@ -26,11 +28,12 @@ def main():
 		showUsage()
 		return
 	
-	global s3Connection
-	s3Connection = S3Connection()
-	
-	global redisClient
-	redisClient = redis.Redis(host=sys.argv[1], port=int(sys.argv[2]), db=int(sys.argv[3]))
+	redisHost = sys.argv[1]
+	redisPort = int(sys.argv[2])
+	redisDB = int(sys.argv[3])
+			
+	global lock
+	lock = Lock()
 	
 	input_queue = get_input_queue(sys.argv[4], sys.argv[5])
 
@@ -39,13 +42,20 @@ def main():
 	num_pool_workers = settings.NUM_POOL_WORKERS
 	messages_per_fetch = settings.MESSAGES_PER_FETCH
 
-	pool = Pool(num_pool_workers, initargs=())
+	pool = Pool(num_pool_workers, initializer=workerSetup, initargs=(redisHost, redisPort, redisDB))
 
-        while True:
-                messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
-                if len(messages) > 0:
-                        pool.map(process_message, messages)
+	while True:
+			messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
+			if len(messages) > 0:
+					pool.map(process_message, messages)
 
+def workerSetup(redisHost, redisPort, redisDB):
+	global s3Connection
+	s3Connection = S3Connection()
+	
+	global redisClient
+	redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
+						
 def showUsage():
 	print "Usage: echo_listener.py <Redis IP> <Redis Port> <Redis DB> <AWS region> <AWS queue name>"
 	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a"
@@ -66,7 +76,7 @@ def item_access(payload):
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 	
 	record_access(target)
-	
+			
 def cache_item(payload):
 	# "source": "s3://my-bucket/key"
 	# "target": "/my-path/key.maybe-extension-too
@@ -75,30 +85,55 @@ def cache_item(payload):
 	
 	print "cache_item s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
 
-	bucket = s3Connection.get_bucket(payload['bucket'])
-
-	k = Key(bucket)
-	k.key = payload['key']
-	
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 
-	targetPath = '/'.join(target.split('/')[0:-1])
+	targetPath = '/'.join(target.split('/')[0:-1])	
 
-	if not os.path.isdir(targetPath):
-		os.makedirs(targetPath)
+	try:
+		if not os.path.isdir(targetPath):
+			os.makedirs(targetPath)
+	except:
+		pass
 
-	if os.path.exists(target):
+	record_access(target)
+		
+	if os.path.exists(target):		
 		print "already exists in cache"
 	else:
-		try:
-			k.get_contents_to_filename(target)
-		except Exception as e:
-			print "problem while trying to download file " + k.key + ": " + e
-			return
-			
-		print "downloaded " + payload['key'] + " from s3"
+		print "synchronisation lock"
+		timeout_start = time.time()
+		timeout = settings.LOCK_TIMEOUT
 		
-	record_access(target)
+		# if the flag exists, then loop until timeout for the flag to disappear
+		if redisClient.exists(payload['target']):
+			while time.time() < timeout_start + timeout:
+				if redisClient.exists(payload['target']):
+					# currently an operation happening for this file
+					time.sleep(0.01)
+				else:
+					timeout_occurred = false
+					break
+					
+			if timeout_occurred:
+				print "lock timeout"
+				return
+		
+		if not os.path.exists(target):
+			redisClient.set(payload['target'], payload['target'])
+	
+			bucket = s3Connection.get_bucket(payload['bucket'])
+
+			k = Key(bucket)
+			k.key = payload['key']
+
+			try:
+				k.get_contents_to_filename(target)
+				print "downloaded " + payload['key'] + " from s3"
+			except Exception as e:
+				print "problem while trying to download file " + k.key + ": " + e
+				pass
+				
+			redisClient.del(payload['target'])
 	
 def record_access(item):
 	#print "record_access for " + item
