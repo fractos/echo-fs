@@ -55,7 +55,7 @@ def process_message(message):
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
 			cache_item(message_body['params'])
-		elif message_body['message']) == "echo::item-access":
+		elif message_body['message'] == "echo::item-access":
 			item_access(message_body['params'])
 
 	message.delete()
