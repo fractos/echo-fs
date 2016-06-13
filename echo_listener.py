@@ -55,9 +55,18 @@ def process_message(message):
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
 			cache_item(message_body['params'])
+		else if message_body['message']) == "echo::item-access":
+			item_access(message_body['params'])
 
 	message.delete()
 
+def item_access(payload):
+	print "received notification of access for " + payload['bucket'] + '/' + payload['key'] + ' to ' + payload['target']
+	
+	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
+	
+	record_access(target)
+	
 def cache_item(payload):
 	# "source": "s3://my-bucket/key"
 	# "target": "/my-path/key.maybe-extension-too
