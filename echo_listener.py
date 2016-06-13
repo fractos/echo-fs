@@ -81,7 +81,12 @@ def cache_item(payload):
 	if os.path.exists(target):
 		print "already exists in cache"
 	else:
-		k.get_contents_to_filename(target)
+		try:
+			k.get_contents_to_filename(target)
+		except Exception as e:
+			print "problem while trying to download file " + k.key + ": " + e
+			return
+			
 		print "downloaded " + payload['key'] + " from s3"
 		
 	record_access(target)
