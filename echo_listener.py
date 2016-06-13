@@ -1,4 +1,4 @@
-from multiprocessing import Pool, Lock, Manager, Dictionary
+from multiprocessing import Pool
 import echo_listener_settings as settings
 from boto import sqs
 from boto.sqs.message import RawMessage
@@ -32,9 +32,6 @@ def main():
 	redisPort = int(sys.argv[2])
 	redisDB = int(sys.argv[3])
 			
-	global lock
-	lock = Lock()
-	
 	input_queue = get_input_queue(sys.argv[4], sys.argv[5])
 
 	input_queue.set_message_class(AgnosticMessage)
@@ -133,7 +130,7 @@ def cache_item(payload):
 				print "problem while trying to download file " + k.key + ": " + e
 				pass
 				
-			redisClient.del(payload['target'])
+			redisClient.delete(payload['target'])
 	
 def record_access(item):
 	#print "record_access for " + item
