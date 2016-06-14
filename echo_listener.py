@@ -81,7 +81,7 @@ def cache_item(payload):
 	# "bucket": "my-bucket"
 	# "key": "key"
 	
-	console_log("cache_item: s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
+	console_log("cache_item: s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target'])
 
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 
