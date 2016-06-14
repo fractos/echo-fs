@@ -95,8 +95,6 @@ def cache_item(payload):
 			os.makedirs(targetPath)
 	except:
 		pass
-
-	record_access(payload['target'])
 		
 	if os.path.exists(target):
 		console_log("already exists in cache")
@@ -132,6 +130,9 @@ def cache_item(payload):
 				console_log("downloaded " + payload['key'] + " -> " + target + ".moving")
 				os.rename(target + ".moving", target)
 				console_log("renamed to " + target)
+				
+				record_access(payload['target'])
+
 			except Exception as e:
 				console_log("problem while trying to download file " + k.key + ": " + e)
 				pass
