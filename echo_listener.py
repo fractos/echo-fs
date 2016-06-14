@@ -70,10 +70,8 @@ def process_message(message):
 
 def item_access(payload):
 	console_log("item_access: " + payload['target'])
-	
-	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
-	
-	record_access(target)
+		
+	record_access(payload['target'])
 			
 def cache_item(payload):
 	# "source": "s3://my-bucket/key"
@@ -93,7 +91,7 @@ def cache_item(payload):
 	except:
 		pass
 
-	record_access(target)
+	record_access(payload['target'])
 		
 	if os.path.exists(target):		
 		console_log("already exists in cache")
