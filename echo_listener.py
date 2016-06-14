@@ -101,7 +101,7 @@ def cache_item(payload):
 	if os.path.exists(target):
 		console_log("already exists in cache")
 	else:
-		console_log("synchronisation lock")
+		#console_log("synchronisation lock")
 		timeout_start = time.time()
 		timeout = settings.LOCK_TIMEOUT
 		
@@ -128,8 +128,10 @@ def cache_item(payload):
 			k.key = payload['key']
 
 			try:
-				k.get_contents_to_filename(target)
-				console_log("downloaded " + payload['key'] + " from s3")
+				k.get_contents_to_filename(target + ".moving")
+				console_log("downloaded " + payload['key'] + " -> " + target + ".moving")
+				os.rename(target + ".moving", target)
+				console_log("renamed to " + target)
 			except Exception as e:
 				console_log("problem while trying to download file " + k.key + ": " + e)
 				pass
