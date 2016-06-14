@@ -69,7 +69,7 @@ def process_message(message):
 	message.delete()
 
 def item_access(payload):
-	console_log("item_access: " + "payload['target'])
+	console_log("item_access: " + payload['target'])
 	
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 	
