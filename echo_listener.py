@@ -11,6 +11,7 @@ import redis
 import time
 import random
 import string
+import datetime
 
 class AgnosticMessage(RawMessage):
 	"""
@@ -68,7 +69,7 @@ def process_message(message):
 	message.delete()
 
 def item_access(payload):
-	print "item_access s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
+	console_log("item_access: " + "payload['target'])
 	
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 	
@@ -80,7 +81,7 @@ def cache_item(payload):
 	# "bucket": "my-bucket"
 	# "key": "key"
 	
-	print "cache_item s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
+	console_log("cache_item: s3://" + payload['bucket'] + '/' + payload['key'] + ' -> ' + payload['target']
 
 	target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
 
@@ -95,9 +96,9 @@ def cache_item(payload):
 	record_access(target)
 		
 	if os.path.exists(target):		
-		print "already exists in cache"
+		console_log("already exists in cache")
 	else:
-		print "synchronisation lock"
+		console_log("synchronisation lock")
 		timeout_start = time.time()
 		timeout = settings.LOCK_TIMEOUT
 		
@@ -125,9 +126,9 @@ def cache_item(payload):
 
 			try:
 				k.get_contents_to_filename(target)
-				print "downloaded " + payload['key'] + " from s3"
+				console_log("downloaded " + payload['key'] + " from s3")
 			except Exception as e:
-				print "problem while trying to download file " + k.key + ": " + e
+				console_log("problem while trying to download file " + k.key + ": " + e)
 				pass
 				
 			redisClient.delete(payload['target'])
@@ -141,5 +142,8 @@ def get_input_queue(region, queue):
 	conn = sqs.connect_to_region(region)
 	return conn.get_queue(queue)
 
+def console_log(message):
+	print('{:%Y%m%d %H:%M:%S} %s'.format(datetime.datetime.now(), message))
+	
 if __name__ == "__main__":
 	main()
