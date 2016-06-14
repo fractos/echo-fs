@@ -143,7 +143,7 @@ def get_input_queue(region, queue):
 	return conn.get_queue(queue)
 
 def console_log(message):
-	print('{:%Y%m%d %H:%M:%S} %s'.format(datetime.datetime.now(), message))
+	print('{:%Y%m%d %H:%M:%S} '.format(datetime.datetime.now()) + message)
 	
 if __name__ == "__main__":
 	main()
