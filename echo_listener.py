@@ -59,7 +59,12 @@ def showUsage():
 	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a"
 
 def process_message(message):
+	console_log("process_message called")
+	
 	message_body = message.get_effective_message()
+	
+	console_log("message type=" + message_body['_type'])
+	
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
 			cache_item(message_body['params'])
@@ -93,7 +98,7 @@ def cache_item(payload):
 
 	record_access(payload['target'])
 		
-	if os.path.exists(target):		
+	if os.path.exists(target):
 		console_log("already exists in cache")
 	else:
 		console_log("synchronisation lock")
