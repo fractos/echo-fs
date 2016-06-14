@@ -59,11 +59,11 @@ def showUsage():
 	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a"
 
 def process_message(message):
-	console_log("process_message called")
+	# console_log("process_message called")
 	
 	message_body = message.get_effective_message()
 	
-	console_log("message type=" + message_body['_type'])
+	# console_log("message type=" + message_body['_type'])
 	
 	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
 		if message_body['message'] == "echo::cache-item":
@@ -74,7 +74,7 @@ def process_message(message):
 	message.delete()
 
 def item_access(payload):
-	console_log("item_access: " + payload['target'])
+	# console_log("item_access: " + payload['target'])
 		
 	record_access(payload['target'])
 			
