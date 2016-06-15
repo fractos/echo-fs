@@ -103,6 +103,8 @@ def cache_item(payload):
 		timeout_start = time.time()
 		timeout = settings.LOCK_TIMEOUT
 		
+		timeout_occurred = true
+		
 		# if the flag exists, then loop until timeout for the flag to disappear
 		if redisClient.exists(payload['target']):
 			while time.time() < timeout_start + timeout:
