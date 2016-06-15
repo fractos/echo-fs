@@ -89,7 +89,7 @@ def handle_error(e, message):
 
 	console_log("exception: %s" % str(e))
 
-	m = Message()
+	m = RawMessage()
 	m.set_body(str(message.get_effective_message()))
 	errorQueue.write(m)
 	
