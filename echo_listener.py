@@ -25,38 +25,45 @@ class AgnosticMessage(RawMessage):
 		return b
 
 def main():
-	if len(sys.argv) < 5:
+	if len(sys.argv) < 6:
 		showUsage()
 		return
 	
 	redisHost = sys.argv[1]
 	redisPort = int(sys.argv[2])
 	redisDB = int(sys.argv[3])
-			
-	input_queue = get_input_queue(sys.argv[4], sys.argv[5])
+
+	region = sys.argv[4]
+	inputQueueName = sys.argv[5]
+	errorQueueName = sys.argv[6]
+	
+	input_queue = get_queue(sys.argv[4], sys.argv[5])
 
 	input_queue.set_message_class(AgnosticMessage)
 	
 	num_pool_workers = settings.NUM_POOL_WORKERS
 	messages_per_fetch = settings.MESSAGES_PER_FETCH
 
-	pool = Pool(num_pool_workers, initializer=workerSetup, initargs=(redisHost, redisPort, redisDB))
+	pool = Pool(num_pool_workers, initializer=workerSetup, initargs=(redisHost, redisPort, redisDB, region, errorQueueName))
 
 	while True:
 			messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
 			if len(messages) > 0:
 					pool.map(process_message, messages)
 
-def workerSetup(redisHost, redisPort, redisDB):
+def workerSetup(redisHost, redisPort, redisDB, region, errorQueueName):
 	global s3Connection
 	s3Connection = S3Connection()
 	
 	global redisClient
 	redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
-						
+	
+	global errorQueue
+	errorQueue = get_queue(region, errorQueueName)
+
 def showUsage():
-	print "Usage: echo_listener.py <Redis IP> <Redis Port> <Redis DB> <AWS region> <AWS queue name>"
-	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a"
+	print "Usage: echo_listener.py <Redis IP> <Redis Port> <Redis DB> <AWS region> <AWS input queue name> <AWS error queue name>"
+	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a echo-eu-west-1a-errors"
 
 def process_message(message):
 	# console_log("process_message called")
@@ -65,14 +72,29 @@ def process_message(message):
 	
 	# console_log("message type=" + message_body['_type'])
 	
-	if '_type' in message_body and 'message' in message_body and 'params' in message_body:
-		if message_body['message'] == "echo::cache-item":
-			cache_item(message_body['params'])
-		elif message_body['message'] == "echo::item-access":
-			item_access(message_body['params'])
-
+	try:
+	
+		if '_type' in message_body and 'message' in message_body and 'params' in message_body:
+			if message_body['message'] == "echo::cache-item":
+				cache_item(message_body['params'])
+			elif message_body['message'] == "echo::item-access":
+				item_access(message_body['params'])
+	except:
+		e = sys.exc_info()[0]
+		handle_error(e, message)
+		
 	message.delete()
 
+def handle_error(e, message):
+
+	console_log("exception: %s" % str(e))
+
+	error_queue = get_queue()
+	
+	m = Message()
+	m.set_body(str(message.get_effective_message()))
+	error_queue.write(m)
+	
 def item_access(payload):
 	# console_log("item_access: " + payload['target'])
 		
@@ -146,7 +168,7 @@ def record_access(item):
 	accessTime = int(time.time())
 	redisClient.zadd('access', item, accessTime)
 	
-def get_input_queue(region, queue):
+def get_queue(region, queue):
 	conn = sqs.connect_to_region(region)
 	return conn.get_queue(queue)
 
