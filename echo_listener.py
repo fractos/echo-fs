@@ -103,7 +103,7 @@ def cache_item(payload):
 		timeout_start = time.time()
 		timeout = settings.LOCK_TIMEOUT
 		
-		timeout_occurred = true
+		timeout_occurred = True
 		
 		# if the flag exists, then loop until timeout for the flag to disappear
 		if redisClient.exists(payload['target']):
@@ -112,7 +112,7 @@ def cache_item(payload):
 					# currently an operation happening for this file
 					time.sleep(0.01)
 				else:
-					timeout_occurred = false
+					timeout_occurred = False
 					break
 					
 			if timeout_occurred:
