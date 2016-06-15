@@ -79,9 +79,9 @@ def process_message(message):
 				cache_item(message_body['params'])
 			elif message_body['message'] == "echo::item-access":
 				item_access(message_body['params'])
-	except:
-		e = sys.exc_info()[0]
+	except Exception, e:
 		handle_error(e, message)
+		pass
 		
 	message.delete()
 
