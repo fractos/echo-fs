@@ -91,7 +91,7 @@ def handle_error(e, message):
 
 	m = RawMessage()
 	
-	m.set_body(str(json.dumps(json.loads(message.get_effective_message()))))
+	m.set_body(str(json.dumps(message.get_effective_message())))
 	errorQueue.write(m)
 	
 def item_access(payload):
