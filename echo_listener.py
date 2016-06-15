@@ -90,7 +90,8 @@ def handle_error(e, message):
 	console_log("exception: %s" % str(e))
 
 	m = RawMessage()
-	m.set_body(str(message.get_effective_message()))
+	
+	m.set_body(str(json.loads(message.get_effective_message())))
 	errorQueue.write(m)
 	
 def item_access(payload):
