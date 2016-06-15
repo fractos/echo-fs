@@ -136,8 +136,7 @@ def cache_item(payload):
 					break
 					
 			if timeout_occurred:
-				print "lock timeout"
-				return
+				raise Exception("lock timeout")
 		
 		if not os.path.exists(target):
 			redisClient.set(payload['target'], payload['target'])
