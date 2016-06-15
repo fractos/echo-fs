@@ -91,7 +91,7 @@ def handle_error(e, message):
 
 	m = Message()
 	m.set_body(str(message.get_effective_message()))
-	error_queue.write(m)
+	errorQueue.write(m)
 	
 def item_access(payload):
 	# console_log("item_access: " + payload['target'])
