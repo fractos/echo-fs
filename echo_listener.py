@@ -89,8 +89,6 @@ def handle_error(e, message):
 
 	console_log("exception: %s" % str(e))
 
-	error_queue = get_queue()
-	
 	m = Message()
 	m.set_body(str(message.get_effective_message()))
 	error_queue.write(m)
