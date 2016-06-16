@@ -25,7 +25,7 @@ class AgnosticMessage(RawMessage):
 		return b
 
 def main():
-	if len(sys.argv) < 6:
+	if len(sys.argv) < 7:
 		showUsage()
 		return
 	
@@ -37,7 +37,7 @@ def main():
 	inputQueueName = sys.argv[5]
 	errorQueueName = sys.argv[6]
 	
-	input_queue = get_queue(sys.argv[4], sys.argv[5])
+	input_queue = get_queue(region, inputQueueName)
 
 	input_queue.set_message_class(AgnosticMessage)
 	
