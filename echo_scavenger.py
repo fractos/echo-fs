@@ -19,10 +19,6 @@ def main():
 	global redisClient
 	redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
 
-	percentageFree = get_free_space(settings.CACHE_ROOT)
-	
-	console_log("percentage free = %s" % str(round(percentageFree, 2)))
-	
 	# loop forever
 	
 	# check disk space
@@ -34,6 +30,56 @@ def main():
 	#     rename file to '.deleting'
 	#     remove from access set
 	#     delete file
+		
+	while True:
+		percentage_free = get_free_space(settings.CACHE_ROOT)
+		
+		percentage_free = 4.5
+		
+		console_log("percentage free = %s" % str(round(percentage_free, 2)))
+		
+		if percentage_free < settings.CACHE_FREE:
+			
+			console_log("disk space free is below threshold (" + str(settings.CACHE_FREE) + ")")
+			
+			cardinality = get_access_set_cardinality()
+			
+			console_log("cardinality= " + str(cardinality))
+			
+			if cardinality > 0:
+				
+				chunk_length = (cardinality / 100) * settings.CHUNK_SIZE
+				
+				if chunk_length < 1:
+					chunk_length = 1
+					
+				chunk = get_access_set_range(chunk_length)
+				
+				for item in chunk:
+					
+					target = settings.CACHE_ROOT + item
+					
+					console_log('deleting: ' + target)
+					
+					remove_from_access_set(item)
+					
+					#os.rename(target, target + '.deleting')
+					
+					#os.remove(target + '.deleting')
+
+def remove_from_access_set(target):
+
+	console_log('removing ' + target + ' from access set')
+	
+	#redisClient.zrem("access", target)
+
+def get_access_set_range(chunk_length):
+
+	return redisClient.zrange("access", 0, chunk_length)
+
+def get_access_set_cardinality():
+	
+	return redisClient.zcard("access")
 		
 def get_free_space(pathname):
 	st = os.statvfs(pathname)
