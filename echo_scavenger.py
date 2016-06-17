@@ -32,46 +32,54 @@ def main():
 	#     delete file
 		
 	while True:
-		percentage_free = get_free_space(settings.CACHE_ROOT)
-		
-		percentage_free = 4.5
-		
-		console_log("percentage free = %s" % str(round(percentage_free, 2)))
-		
-		if percentage_free < settings.CACHE_FREE:
+		try:
+			percentage_free = get_free_space(settings.CACHE_ROOT)
+						
+			console_log("percentage free = %s" % str(round(percentage_free, 2)))
 			
-			console_log("disk space free is below threshold (" + str(settings.CACHE_FREE) + ")")
-			
-			cardinality = get_access_set_cardinality()
-			
-			console_log("cardinality= " + str(cardinality))
-			
-			if cardinality > 0:
+			if percentage_free < settings.CACHE_FREE:
 				
-				chunk_length = (cardinality / 100) * settings.CHUNK_SIZE
+				console_log("disk space free is below threshold (" + str(settings.CACHE_FREE) + ")")
 				
-				if chunk_length < 1:
-					chunk_length = 1
-					
-				chunk = get_access_set_range(chunk_length)
+				cardinality = get_access_set_cardinality()
 				
-				for item in chunk:
+				console_log("number of items in access set =  " + str(cardinality) + ", chunk size = " + str(settings.CHUNK_SIZE) + "%")
+				
+				if cardinality > 0:
 					
-					target = settings.CACHE_ROOT + item
+					chunk_length = (cardinality / 100) * settings.CHUNK_SIZE
 					
-					console_log('deleting: ' + target)
+					if chunk_length < 1:
+						chunk_length = 1
 					
-					remove_from_access_set(item)
+					console_log("chunk length = " + str(chunk_length))
 					
-					#os.rename(target, target + '.deleting')
+					chunk = get_access_set_range(chunk_length)
 					
-					#os.remove(target + '.deleting')
+					for item in chunk:
+						
+						target = settings.CACHE_ROOT + item
+						
+						console_log('deleting: ' + target)
+						
+						remove_from_access_set(item)
+						
+						os.rename(target, target + '.deleting')
+						
+						os.remove(target + '.deleting')
+						
+		except Exception, e:
+			console_log("hit problem during operation: " + str(e))
+			pass
+			
+		console_log('sleeping for ' + str(settings.SLEEP_SECONDS) + ' second(s)')
+		time.sleep(int(settings.SLEEP_SECONDS))
 
 def remove_from_access_set(target):
 
 	console_log('removing ' + target + ' from access set')
 	
-	#redisClient.zrem("access", target)
+	redisClient.zrem("access", target)
 
 def get_access_set_range(chunk_length):
 
@@ -83,9 +91,9 @@ def get_access_set_cardinality():
 		
 def get_free_space(pathname):
 	st = os.statvfs(pathname)
-    free = st.f_bavail * st.f_frsize
-    total = st.f_blocks * st.f_frsize
-    used = st.f_frsize * (st.f_blocks - st.f_bfree)
+	free = st.f_bavail * st.f_frsize
+	total = st.f_blocks * st.f_frsize
+	used = st.f_frsize * (st.f_blocks - st.f_bfree)
 	if total > 0:
 		return 100 - (100 * (float(used) / total))
 
