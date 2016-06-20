@@ -143,7 +143,7 @@ def cache_item(payload):
 				raise Exception("lock timeout")
 		
 		if not os.path.exists(target):
-			redisClient.set(payload['target'], payload['target'])
+			redisClient.setex(payload['target'], payload['target'], settings.LOCK_TIMEOUT * 2)
 	
 			bucket = s3Connection.get_bucket(payload['bucket'])
 
