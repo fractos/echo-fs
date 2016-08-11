@@ -140,7 +140,7 @@ def cache_item(payload):
 					break
 					
 			if timeout_occurred:
-				raise Exception('lock timeout for ' + payload('target'))
+				raise Exception('lock timeout for ' + payload['target'])
 		
 		if not os.path.exists(target):
 			redisClient.setex(payload['target'], payload['target'], settings.LOCK_TIMEOUT * 2)
