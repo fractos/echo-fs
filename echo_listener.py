@@ -134,13 +134,13 @@ def cache_item(payload):
 			while time.time() < timeout_start + timeout:
 				if redisClient.exists(payload['target']):
 					# currently an operation happening for this file
-					time.sleep(0.01)
+					time.sleep(0.02)
 				else:
 					timeout_occurred = False
 					break
 					
 			if timeout_occurred:
-				raise Exception("lock timeout")
+				raise Exception('lock timeout for ' + payload('target'))
 		
 		if not os.path.exists(target):
 			redisClient.setex(payload['target'], payload['target'], settings.LOCK_TIMEOUT * 2)
@@ -150,12 +150,16 @@ def cache_item(payload):
 			k = Key(bucket)
 			k.key = payload['key']
 
-			k.get_contents_to_filename(target + ".moving")
-			console_log("downloaded " + payload['key'] + " -> " + target + ".moving")
-			os.rename(target + ".moving", target)
-			console_log("renamed to " + target)
+			try:
+				k.get_contents_to_filename(target + ".moving")
+				
+				console_log("downloaded " + payload['key'] + " -> " + target + ".moving")
+				os.rename(target + ".moving", target)
+				console_log("renamed to " + target)
 			
-			record_access(payload['target'])
+				record_access(payload['target'])
+			except:
+				raise Exception('hit a problem while trying to download ' + payload['key'])
 				
 			redisClient.delete(payload['target'])
 	
