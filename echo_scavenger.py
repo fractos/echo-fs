@@ -71,7 +71,7 @@ def main():
 						try:
 							os.rename(target, target + '.deleting')
 							os.remove(target + '.deleting')
-							count++
+							count = count + 1
 						except Exception, e:
 							console_log("hit problem during rename or delete of " + target + ": " + str(e))
 							pass
