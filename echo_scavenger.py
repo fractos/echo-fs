@@ -31,6 +31,8 @@ def main():
 	#     remove from access set
 	#     delete file
 		
+	count = 0
+		
 	while True:
 		try:
 			percentage_free = get_free_space(settings.CACHE_ROOT)
@@ -55,7 +57,9 @@ def main():
 					console_log("chunk length = " + str(chunk_length))
 					
 					chunk = get_access_set_range(chunk_length)
-					
+				
+					count = 0
+				
 					for item in chunk:
 						
 						target = settings.CACHE_ROOT + item
@@ -64,10 +68,16 @@ def main():
 						
 						remove_from_access_set(item)
 						
-						os.rename(target, target + '.deleting')
+						try:
+							os.rename(target, target + '.deleting')
+							os.remove(target + '.deleting')
+							count++
+						except Exception, e:
+							console_log("hit problem during rename or delete of " + target + ": " + str(e))
+							pass
 						
-						os.remove(target + '.deleting')
-						
+					console_log("removed " + str(count) + " items")
+					
 		except Exception, e:
 			console_log("hit problem during operation: " + str(e))
 			pass
