@@ -158,8 +158,8 @@ def cache_item(payload):
 				console_log("renamed to " + target)
 			
 				record_access(payload['target'])
-			except:
-				raise Exception('hit a problem while trying to download ' + payload['key'])
+			except Exception, e:
+				raise Exception('hit a problem while trying to download ' + payload['key'] + ': ' + str(e))
 				
 			redisClient.delete(payload['target'])
 	
