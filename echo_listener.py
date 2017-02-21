@@ -53,7 +53,7 @@ def main():
 
 def workerSetup(redisHost, redisPort, redisDB, region, errorQueueName):
 	global s3Connection
-	if hasattr(settings, "AWS_ACCESS_KEY_ID") && hasattr(settings, "AWS_SECRET_ACCESS_KEY"):
+	if hasattr(settings, "AWS_ACCESS_KEY_ID") and hasattr(settings, "AWS_SECRET_ACCESS_KEY"):
 		s3Connection = S3Connection(aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 	else:
 		s3Connection = S3Connection()
