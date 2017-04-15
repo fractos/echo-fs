@@ -25,26 +25,14 @@ class AgnosticMessage(RawMessage):
 		return b
 
 def main():
-	if len(sys.argv) < 7:
-		showUsage()
-		return
-	
-	redisHost = sys.argv[1]
-	redisPort = int(sys.argv[2])
-	redisDB = int(sys.argv[3])
-
-	region = sys.argv[4]
-	inputQueueName = sys.argv[5]
-	errorQueueName = sys.argv[6]
-	
-	input_queue = get_queue(region, inputQueueName)
+	input_queue = get_queue(settings.QUEUE_REGION, settings.INPUT_QUEUE)
 
 	input_queue.set_message_class(AgnosticMessage)
 	
 	num_pool_workers = settings.NUM_POOL_WORKERS
 	messages_per_fetch = settings.MESSAGES_PER_FETCH
 
-	pool = Pool(num_pool_workers, initializer=workerSetup, initargs=(redisHost, redisPort, redisDB, region, errorQueueName))
+	pool = Pool(num_pool_workers, initializer=workerSetup, initargs=(settings.REDIS_HOST, settings.REDIS_PORT, settings.REDIS_DB, settings.QUEUE_REGION, settings.ERROR_QUEUE))
 
 	while True:
 			messages = input_queue.get_messages(num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
@@ -53,20 +41,13 @@ def main():
 
 def workerSetup(redisHost, redisPort, redisDB, region, errorQueueName):
 	global s3Connection
-	if hasattr(settings, "AWS_ACCESS_KEY_ID") and hasattr(settings, "AWS_SECRET_ACCESS_KEY"):
-		s3Connection = S3Connection(aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-	else:
-		s3Connection = S3Connection()
+	s3Connection = S3Connection(aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 	
 	global redisClient
 	redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
 	
 	global errorQueue
 	errorQueue = get_queue(region, errorQueueName)
-
-def showUsage():
-	print "Usage: echo_listener.py <Redis IP> <Redis Port> <Redis DB> <AWS region> <AWS input queue name> <AWS error queue name>"
-	print "Example: echo_listener.py 172.17.0.2 6379 0 eu-west-1 echo-eu-west-1a echo-eu-west-1a-errors"
 
 def process_message(message):
 	# console_log("process_message called")

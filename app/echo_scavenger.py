@@ -8,16 +8,10 @@ import string
 import datetime
 
 def main():
-	if len(sys.argv) < 3:
-		showUsage()
-		return
-	
-	redisHost = sys.argv[1]
-	redisPort = int(sys.argv[2])
-	redisDB = int(sys.argv[3])
-			
+	console_log('scavenger starting')
+
 	global redisClient
-	redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
+	redisClient = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
 
 	# loop forever
 	
@@ -109,10 +103,6 @@ def get_free_space(pathname):
 
 	return 100
 
-def showUsage():
-	print "Usage: echo_scavenger.py <Redis IP> <Redis Port> <Redis DB>"
-	print "Example: echo_listener.py 172.17.0.2 6379 0"
-	
 def console_log(message):
 	print('{:%Y%m%d %H:%M:%S} '.format(datetime.datetime.now()) + message)
 	
