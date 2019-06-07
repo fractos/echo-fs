@@ -79,7 +79,6 @@ def setup_signal_handling():
 
 def process_message(message):
     message_body = message.body
-    logger.debug(f"process_message({message_body})")
     message_body = get_effective_message(message)
 
     logger.debug("message type=" + message_body["_type"])
