@@ -50,14 +50,15 @@ def main():
     errorQueue = sqs.get_queue_by_name(QueueName=settings.ERROR_QUEUE)
 
     while lifecycle_continues():
+        logger.info("checking for messages")
         messages = input_queue.receive_messages(
             WaitTimeSeconds=10,
             MaxNumberOfMessages=settings.MESSAGES_PER_FETCH)
 
         if len(messages) > 0:
-            with ThreadPoolExecutor(max_workers=settings.NUM_POOL_WORKERS) as executor:
-                for message in messages:
-                    executor.submit(process_message, message)
+            logger.info(f"received {len(messages)} messages")
+            for message in messages:
+                process_message(message)
 
 
 def lifecycle_continues():
