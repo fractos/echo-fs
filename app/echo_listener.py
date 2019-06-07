@@ -21,7 +21,7 @@ def get_effective_message(message):
     """
     A message might originate from SNS or SQS. If from SNS then it will have a wrapper on it.
     """
-    b = json.loads(str(message.get_body()))
+    b = json.loads(str(message.body))
     if "Type" in b and b["Type"] == "Notification":
         return json.loads(b["Message"])
     return b
@@ -78,7 +78,7 @@ def setup_signal_handling():
 
 
 def process_message(message):
-    message_body = message.get_body()
+    message_body = message.body
     logger.debug(f"process_message({message_body})")
     message_body = get_effective_message(message)
 
