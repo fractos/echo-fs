@@ -104,7 +104,7 @@ def handle_error(e, message):
     message_body = get_effective_message(message)
     message_body["exception"] = str(e)
 
-    message.set_body(str(json.dumps(message_body)))
+    message.body = str(json.dumps(message_body))
     errorQueue.write(message)
 
 
