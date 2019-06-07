@@ -1,9 +1,6 @@
-from multiprocessing import Pool
 import echo_listener_settings as settings
-from boto import sqs
-from boto.sqs.message import RawMessage, Message
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
+import boto3
+from concurrent.futures.thread import ThreadPoolExecutor
 import json
 import os.path
 import sys
@@ -12,86 +9,110 @@ import time
 import random
 import string
 import datetime
+import signal
+import logging
+from logzero import logger
+import logzero
 
-class AgnosticMessage(RawMessage):
+requested_to_quit = False
+
+
+def get_effective_message(message):
     """
     A message might originate from SNS or SQS. If from SNS then it will have a wrapper on it.
     """
-
-    def get_effective_message(self):
-        b = json.loads(str(self.get_body()))
-        if 'Type' in b and b['Type'] == "Notification":
-            return json.loads(b['Message'])
-        return b
+    b = json.loads(str(message.get_body()))
+    if "Type" in b and b["Type"] == "Notification":
+        return json.loads(b["Message"])
+    return b
 
 def main():
-    input_queue = get_queue(settings.QUEUE_REGION, settings.INPUT_QUEUE)
 
-    input_queue.set_message_class(AgnosticMessage)
+    logger.info("starting")
 
-    num_pool_workers = settings.NUM_POOL_WORKERS
-    messages_per_fetch = settings.MESSAGES_PER_FETCH
+    setup_signal_handling()
 
-    pool = Pool(
-        num_pool_workers,
-        initializer=workerSetup,
-        initargs=(
-            settings.REDIS_HOST, settings.REDIS_PORT, settings.REDIS_DB,
-            settings.QUEUE_REGION, settings.ERROR_QUEUE))
+    global s3
+    s3 = boto3.client("s3")
 
-    while True:
-        messages = input_queue.get_messages(
-            num_messages=messages_per_fetch, visibility_timeout=120, wait_time_seconds=20)
-        if len(messages) > 0:
-            pool.map(process_message, messages)
-
-def workerSetup(redisHost, redisPort, redisDB, region, errorQueueName):
-    global s3Connection
-    s3Connection = S3Connection(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+    global sqs
+    sqs = boto3.resource("sqs", settings.QUEUE_REGION)
 
     global redisClient
-    redisClient = redis.Redis(host=redisHost, port=redisPort, db=redisDB)
+    redisClient = redis.Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        db=settings.REDIS_DB)
+
+    input_queue = sqs.get_queue_by_name(QueueName=settings.INPUT_QUEUE)
 
     global errorQueue
-    errorQueue = get_queue(region, errorQueueName)
+    errorQueue = sqs.get_queue_by_name(QueueName=settings.ERROR_QUEUE)
+
+    while lifecycle_continues():
+        messages = input_queue.get_messages(
+            num_messages=settings.MESSAGES_PER_FETCH,
+            visibility_timeout=120,
+            wait_time_seconds=10)
+
+        if len(messages) > 0:
+            with ThreadPoolExecutor(max_workers=settings.NUM_POOL_WORKERS) as executor:
+                for message in messages:
+                    executor.submit(process_message, message)
+
+
+def lifecycle_continues():
+    return not requested_to_quit
+
+
+def signal_handler(signum, frame):
+    logger.info("Caught signal %s" % signum)
+    global requested_to_quit
+    requested_to_quit = True
+
+
+def setup_signal_handling():
+    logger.info("setting up signal handling")
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
 
 def process_message(message):
-    # console_log("process_message called")
+    message_body = message.get_body()
+    logger.debug(f"process_message({message_body})")
+    message_body = get_effective_message(message)
 
-    message_body = message.get_effective_message()
-
-    # console_log("message type=" + message_body['_type'])
+    logger.debug("message type=" + message_body["_type"])
 
     try:
 
-        if '_type' in message_body and 'message' in message_body and 'params' in message_body:
-            if message_body['message'] == "echo::cache-item":
-                cache_item(message_body['params'])
-            elif message_body['message'] == "echo::item-access":
-                item_access(message_body['params'])
+        if "_type" in message_body and "message" in message_body and "params" in message_body:
+            if message_body["message"] == "echo::cache-item":
+                cache_item(message_body["params"])
+            elif message_body["message"] == "echo::item-access":
+                item_access(message_body["params"])
     except Exception as e:
         handle_error(e, message)
 
     message.delete()
 
+
 def handle_error(e, message):
 
-    console_log("exception: %s" % str(e))
+    logger.error(f"exception: {e}")
 
-    raw_message = RawMessage()
+    message_body = get_effective_message(message)
+    message_body["exception"] = str(e)
 
-    message_body = message.get_effective_message()
-    message_body['exception'] = str(e)
+    message.set_body(str(json.dumps(message_body)))
+    errorQueue.write(message)
 
-    raw_message.set_body(str(json.dumps(message_body)))
-    errorQueue.write(raw_message)
 
 def item_access(payload):
-    # console_log("item_access: " + payload['target'])
+    target = payload["target"]
+    logger.info(f"item_access: {target}")
+    record_access(target)
 
-    record_access(payload['target'])
 
 def cache_item(payload):
     # "source": "s3://my-bucket/key"
@@ -99,12 +120,15 @@ def cache_item(payload):
     # "bucket": "my-bucket"
     # "key": "key"
 
-    console_log("cache_item: s3://%s/%s -> %s"
-                % (payload['bucket'], payload['key'], payload['target']))
+    bucket = payload["bucket"]
+    key = payload["key"]
+    target = payload["target"]
 
-    target = settings.CACHE_ROOT + payload['target'].decode('utf-8')
+    logger.info(f"cache_item: s3://{bucket}/{key} -> {target}")
 
-    target_path = '/'.join(target.split('/')[0:-1])
+    target = settings.CACHE_ROOT + target.decode("utf-8")
+
+    target_path = "/".join(target.split("/")[0:-1])
 
     try:
         if not os.path.isdir(target_path):
@@ -113,18 +137,22 @@ def cache_item(payload):
         pass
 
     if os.path.exists(target):
-        console_log("already exists in cache")
+        logger.info("already exists in cache")
     else:
-        #console_log("synchronisation lock")
+        # synchronisation lock
+        # this uses a key in redis, based on the target name
+        # if key exists then it will wait for it to be removed up to a timeout
+        # then the existence of the file on disk will be checked
+
         timeout_start = time.time()
         timeout = settings.LOCK_TIMEOUT
 
         timeout_occurred = True
 
         # if the flag exists, then loop until timeout for the flag to disappear
-        if redisClient.exists(payload['target']):
+        if redisClient.exists(target):
             while time.time() < timeout_start + timeout:
-                if redisClient.exists(payload['target']):
+                if redisClient.exists(target):
                     # currently an operation happening for this file
                     time.sleep(0.02)
                 else:
@@ -132,42 +160,33 @@ def cache_item(payload):
                     break
 
             if timeout_occurred:
-                console_log('lock timeout for ' + payload['target'])
+                logger.info(f"lock timeout for {target}")
 
         if not os.path.exists(target):
-            redisClient.setex(payload['target'], payload['target'], settings.LOCK_TIMEOUT * 2)
-
-            bucket = s3Connection.get_bucket(payload['bucket'])
-
-            k = Key(bucket)
-            k.key = payload['key']
+            # set synchronisation key
+            redisClient.setex(target, target, settings.LOCK_TIMEOUT * 2)
 
             try:
-                k.get_contents_to_filename(target + ".moving")
+                with open(f"{target}.moving", "wb") as target_output:
+                    s3.download_fileobj(bucket, key, target_output)
+                logger.info(f"downloaded {key} -> {target}.moving")
+                os.rename(f"{target}.moving", target)
+                logger.info(f"renamed to {target}")
+                record_access(target)
 
-                console_log("downloaded " + payload['key'] + " -> " + target + ".moving")
-                os.rename(target + ".moving", target)
-                console_log("renamed to " + target)
-
-                record_access(payload['target'])
             except Exception as e:
-                console_log("hit a problem while trying to download %s: %s"
-                            % (payload['key'], str(e)))
+                logger.info(f"hit a problem while trying to download {key}: {e}")
                 return
 
-            redisClient.delete(payload['target'])
+            # remove synchronisation key
+            redisClient.delete(target)
+
 
 def record_access(item):
     #print "record_access for " + item
     access_time = int(time.time())
     redisClient.zadd('access', item, access_time)
 
-def get_queue(region, queue):
-    conn = sqs.connect_to_region(region)
-    return conn.get_queue(queue)
-
-def console_log(message):
-    print('{:%Y%m%d %H:%M:%S} '.format(datetime.datetime.now()) + message)
 
 if __name__ == "__main__":
     main()
