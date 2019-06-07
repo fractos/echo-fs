@@ -11,6 +11,8 @@ import logging
 from logzero import logger
 import logzero
 
+requested_to_quit = False
+
 
 def main():
     logger.info("starting")
