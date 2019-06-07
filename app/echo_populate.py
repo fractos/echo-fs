@@ -45,6 +45,8 @@ def main():
 
     logger.info("finished")
 
+    exit(0)
+
 
 def lifecycle_continues():
     return not requested_to_quit
