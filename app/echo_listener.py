@@ -188,7 +188,7 @@ def record_access(item):
     mapping = {
         item: access_time
     }
-    redisClient.zadd('access', mapping)
+    redisClient.zadd("access", mapping)
 
 
 if __name__ == "__main__":

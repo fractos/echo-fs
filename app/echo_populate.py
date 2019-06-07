@@ -38,7 +38,10 @@ def main():
 
             # if redisClient.zscore("access", adding_name) is None:
             logger.info(f"adding {full_path_name} as {adding_name}: {access_time}")
-            redisClient.zadd("access", adding_name, access_time)
+            mapping = {
+                adding_name: access_time
+            }
+            redisClient.zadd("access", mapping)
 
     logger.info("finished")
 
