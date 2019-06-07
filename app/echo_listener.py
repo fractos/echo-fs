@@ -188,4 +188,9 @@ def record_access(item):
 
 
 if __name__ == "__main__":
+    if settings.DEBUG:
+        logzero.loglevel(logging.DEBUG)
+    else:
+        logzero.loglevel(logging.INFO)
+
     main()
