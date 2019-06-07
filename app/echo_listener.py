@@ -185,7 +185,10 @@ def cache_item(payload):
 def record_access(item):
     #print "record_access for " + item
     access_time = int(time.time())
-    redisClient.zadd('access', item, access_time)
+    mapping = {
+        item: access_time
+    }
+    redisClient.zadd('access', mapping)
 
 
 if __name__ == "__main__":
