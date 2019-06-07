@@ -1,4 +1,7 @@
 import os
+import distutils.util
+
+DEBUG = bool(distutils.util.strtobool(os.environ.get("DEBUG", default="False")))
 
 REDIS_HOST = os.environ.get('ECHO_REDIS_HOST')
 REDIS_PORT = int(os.environ.get('ECHO_REDIS_PORT'))

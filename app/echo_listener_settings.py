@@ -1,4 +1,7 @@
 import os
+import distutils.util
+
+DEBUG = bool(distutils.util.strtobool(os.environ.get("DEBUG", default="False")))
 
 NUM_POOL_WORKERS = 5
 MESSAGES_PER_FETCH = 10
