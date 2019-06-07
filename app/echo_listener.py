@@ -50,10 +50,9 @@ def main():
     errorQueue = sqs.get_queue_by_name(QueueName=settings.ERROR_QUEUE)
 
     while lifecycle_continues():
-        messages = input_queue.get_messages(
-            num_messages=settings.MESSAGES_PER_FETCH,
-            visibility_timeout=120,
-            wait_time_seconds=10)
+        messages = input_queue.receive_messages(
+            WaitTimeSeconds=10,
+            MaxNumberOfMessages=settings.MESSAGES_PER_FETCH)
 
         if len(messages) > 0:
             with ThreadPoolExecutor(max_workers=settings.NUM_POOL_WORKERS) as executor:
