@@ -1,4 +1,3 @@
-import echo_scavenger_settings as settings
 import os
 import sys
 import redis
@@ -10,6 +9,7 @@ import signal
 import logging
 from logzero import logger
 import logzero
+import settings
 
 requested_to_quit = False
 
@@ -71,8 +71,8 @@ def main():
             logger.error("hit problem during operation: " + str(e))
             pass
 
-        logger.info(f"sleeping for {settings.SLEEP_SECONDS} second(s)")
-        time.sleep(int(settings.SLEEP_SECONDS))
+        logger.info(f"sleeping for {settings.SCAVENGER_SLEEP_SECONDS} second(s)")
+        time.sleep(int(settings.SCAVENGER_SLEEP_SECONDS))
 
 
 def lifecycle_continues():
@@ -106,7 +106,7 @@ def get_access_set_cardinality():
 
 def get_free_space(pathname):
     st = os.statvfs(pathname)
-    free = st.f_bavail * st.f_frsize
+    # free = st.f_bavail * st.f_frsize
     total = st.f_blocks * st.f_frsize
     used = st.f_frsize * (st.f_blocks - st.f_bfree)
     if total > 0:

@@ -1,4 +1,3 @@
-import echo_populate_settings as settings
 import os.path
 import sys
 import redis
@@ -9,6 +8,7 @@ import signal
 import logging
 from logzero import logger
 import logzero
+import settings
 
 requested_to_quit = False
 
@@ -19,29 +19,39 @@ def main():
 
     setup_signal_handling()
 
-    global redisClient
-    redisClient = redis.Redis(host=settings.REDIS_HOST,port=settings.REDIS_PORT,db=settings.REDIS_DB)
+    keep_running = True
 
-    for path, _, files in os.walk(settings.CACHE_ROOT):
-        if not lifecycle_continues():
-            break
+    while keep_running:
+        global redisClient
+        redisClient = redis.Redis(host=settings.REDIS_HOST,port=settings.REDIS_PORT,db=settings.REDIS_DB)
 
-        for filename in files:
+        for path, _, files in os.walk(settings.CACHE_ROOT):
             if not lifecycle_continues():
                 break
 
-            full_path_name = os.path.join(path, filename)
-            unix_timestamp = os.path.getmtime(full_path_name)
+            for filename in files:
+                if not lifecycle_continues():
+                    break
 
-            access_time = int(unix_timestamp)
-            adding_name = full_path_name[len(settings.CACHE_ROOT):]
+                full_path_name = os.path.join(path, filename)
+                unix_timestamp = os.path.getmtime(full_path_name)
 
-            # if redisClient.zscore("access", adding_name) is None:
-            logger.info(f"adding {full_path_name} as {adding_name}: {access_time}")
-            mapping = {
-                adding_name: access_time
-            }
-            redisClient.zadd("access", mapping)
+                access_time = int(unix_timestamp)
+                adding_name = full_path_name[len(settings.CACHE_ROOT):]
+
+                # if redisClient.zscore("access", adding_name) is None:
+                logger.info(f"adding {full_path_name} as {adding_name}: {access_time}")
+                mapping = {
+                    adding_name: access_time
+                }
+                redisClient.zadd("access", mapping)
+
+        redisClient.close()
+
+        keep_running = settings.POPULATE_LOOP
+        if keep_running:
+            logger.info(f"sleeping for {settings.POPULATE_SLEEP_SECONDS} second(s)")
+            time.sleep(int(settings.POPULATE_SLEEP_SECONDS))
 
     logger.info("finished")
 
