@@ -69,7 +69,6 @@ def main():
                     logger.info("removed " + str(count) + " items")
         except Exception as e:
             logger.error("hit problem during operation: " + str(e))
-            pass
 
         logger.info(f"sleeping for {settings.SCAVENGER_SLEEP_SECONDS} second(s)")
         time.sleep(int(settings.SCAVENGER_SLEEP_SECONDS))
