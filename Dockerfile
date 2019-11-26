@@ -11,7 +11,7 @@ WORKDIR /opt/echo-fs
 COPY requirements.txt /opt/echo-fs/requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY run_and_set_ec2_ip.sh /opt/echo-fs
-RUN chmod +x /opt/echo-fs/run_and_set_ec2_ip.sh
+COPY run_populate_with_local_redis_on_ec2.sh /opt/echo-fs
+RUN chmod +x /opt/echo-fs/run_populate_with_local_redis_on_ec2.sh
 
 COPY app /opt/echo-fs
