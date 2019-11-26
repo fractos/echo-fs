@@ -54,6 +54,7 @@ def main():
                     count = 0
 
                     for item in chunk:
+                        logger.info(f"considering item {item}")
                         target = settings.CACHE_ROOT + item
                         logger.info(f"deleting: {target}")
                         remove_from_access_set(item)
