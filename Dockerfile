@@ -3,6 +3,7 @@ FROM alpine:3.9
 RUN apk add --update --no-cache --virtual=run-deps \
   python3 \
   ca-certificates \
+  curl \
   && rm -rf /var/cache/apk/*
 
 RUN mkdir -p /opt/echo-fs
