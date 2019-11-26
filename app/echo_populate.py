@@ -23,6 +23,7 @@ def main():
 
     while keep_running:
         global redisClient
+        logger.info(f"redis client will connect to {settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}")
         redisClient = redis.Redis(host=settings.REDIS_HOST,port=settings.REDIS_PORT,db=settings.REDIS_DB)
 
         for path, _, files in os.walk(settings.CACHE_ROOT):
