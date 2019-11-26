@@ -8,8 +8,8 @@ REDIS_PORT = int(os.environ.get('ECHO_REDIS_PORT'))
 REDIS_DB = int(os.environ.get('ECHO_REDIS_DB'))
 CACHE_ROOT = os.environ.get('ECHO_CACHE_ROOT')
 
-CACHE_FREE = int(os.environ.get('ECHO_SCAVENGER_CACHE_THRESHOLD'))
-CHUNK_SIZE = int(os.environ.get('ECHO_SCAVENGER_CHUNK_SIZE'))
+CACHE_FREE = int(os.environ.get('ECHO_SCAVENGER_CACHE_THRESHOLD', default="50"))
+CHUNK_SIZE = int(os.environ.get('ECHO_SCAVENGER_CHUNK_SIZE', default="10"))
 
 NUM_POOL_WORKERS = 5
 MESSAGES_PER_FETCH = 10
