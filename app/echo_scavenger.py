@@ -55,7 +55,7 @@ def main():
 
                     for item in chunk:
                         logger.info(f"considering item {item}")
-                        target = settings.CACHE_ROOT + item
+                        target = settings.CACHE_ROOT + item.decode("utf-8")
                         logger.info(f"deleting: {target}")
                         remove_from_access_set(item)
 
