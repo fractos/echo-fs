@@ -35,6 +35,9 @@ def main():
 
     count = 0
 
+    if settings.SCAVENGER_MIN_AGE_SECONDS > 0:
+        logger.info(f"using min_age strategy ({settings.SCAVENGER_MIN_AGE_SECONDS} seconds)")
+
     while lifecycle_continues():
         try:
             percentage_free = get_free_space(settings.CACHE_ROOT)
@@ -56,6 +59,21 @@ def main():
                     for item in chunk:
                         logger.info(f"considering item {item}")
                         target = settings.CACHE_ROOT + item.decode("utf-8")
+
+                        if settings.SCAVENGER_MIN_AGE_SECONDS > 0:
+                            age = 0
+                            try:
+                                age = int(time.time() - os.stat(target).st_mtime)
+                            except FileNotFoundError as fnf_exception:
+                                logger.info(f"os.stat on {target} failed: {fnf_exception}")
+                                continue
+
+                            if age > settings.SCAVENGER_MIN_AGE_SECONDS:
+                                logger.info(f"found file {target} at age {age} greater than threshold {settings.SCAVENGER_MIN_AGE_SECONDS}, so will attempt delete")
+                            else:
+                                logger.info(f"found file {target} at age {age} less than or equal to threshold {settings.SCAVENGER_MIN_AGE_SECONDS}, so will not attempt delete")
+                                continue
+
                         logger.info(f"deleting: {target}")
                         remove_from_access_set(item)
 
