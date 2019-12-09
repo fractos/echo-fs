@@ -1,4 +1,3 @@
-import echo_listener_settings as settings
 import boto3
 from concurrent.futures.thread import ThreadPoolExecutor
 import json
@@ -13,6 +12,7 @@ import signal
 import logging
 from logzero import logger
 import logzero
+import settings
 
 requested_to_quit = False
 

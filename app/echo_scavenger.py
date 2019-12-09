@@ -1,4 +1,3 @@
-import echo_scavenger_settings as settings
 import os
 import sys
 import redis
@@ -10,6 +9,7 @@ import signal
 import logging
 from logzero import logger
 import logzero
+import settings
 
 requested_to_quit = False
 
@@ -35,6 +35,9 @@ def main():
 
     count = 0
 
+    if settings.SCAVENGER_MIN_AGE_SECONDS > 0:
+        logger.info(f"using min_age strategy ({settings.SCAVENGER_MIN_AGE_SECONDS} seconds)")
+
     while lifecycle_continues():
         try:
             percentage_free = get_free_space(settings.CACHE_ROOT)
@@ -54,7 +57,23 @@ def main():
                     count = 0
 
                     for item in chunk:
-                        target = settings.CACHE_ROOT + item
+                        logger.info(f"considering item {item}")
+                        target = settings.CACHE_ROOT + item.decode("utf-8")
+
+                        if settings.SCAVENGER_MIN_AGE_SECONDS > 0:
+                            age = 0
+                            try:
+                                age = int(time.time() - os.stat(target).st_mtime)
+                            except FileNotFoundError as fnf_exception:
+                                logger.info(f"os.stat on {target} failed: {fnf_exception}")
+                                continue
+
+                            if age > settings.SCAVENGER_MIN_AGE_SECONDS:
+                                logger.info(f"found file {target} at age {age} greater than threshold {settings.SCAVENGER_MIN_AGE_SECONDS}, so will attempt delete")
+                            else:
+                                logger.info(f"found file {target} at age {age} less than or equal to threshold {settings.SCAVENGER_MIN_AGE_SECONDS}, so will not attempt delete")
+                                continue
+
                         logger.info(f"deleting: {target}")
                         remove_from_access_set(item)
 
@@ -69,10 +88,9 @@ def main():
                     logger.info("removed " + str(count) + " items")
         except Exception as e:
             logger.error("hit problem during operation: " + str(e))
-            pass
 
-        logger.info(f"sleeping for {settings.SLEEP_SECONDS} second(s)")
-        time.sleep(int(settings.SLEEP_SECONDS))
+        logger.info(f"sleeping for {settings.SCAVENGER_SLEEP_SECONDS} second(s)")
+        time.sleep(int(settings.SCAVENGER_SLEEP_SECONDS))
 
 
 def lifecycle_continues():
@@ -106,7 +124,7 @@ def get_access_set_cardinality():
 
 def get_free_space(pathname):
     st = os.statvfs(pathname)
-    free = st.f_bavail * st.f_frsize
+    # free = st.f_bavail * st.f_frsize
     total = st.f_blocks * st.f_frsize
     used = st.f_frsize * (st.f_blocks - st.f_bfree)
     if total > 0:
