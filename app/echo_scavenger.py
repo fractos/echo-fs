@@ -49,7 +49,7 @@ def main():
                 logger.info("number of items in access set =  " + str(cardinality) + ", chunk size = " + str(settings.CHUNK_SIZE) + "%")
 
                 if cardinality > 0:
-                    chunk_length = (cardinality / 100) * settings.CHUNK_SIZE
+                    chunk_length = int((cardinality / 100) * settings.CHUNK_SIZE)
                     if chunk_length < 1:
                         chunk_length = 1
                     logger.info(f"chunk length = {chunk_length}")
